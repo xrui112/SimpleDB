@@ -15,7 +15,9 @@ public class HeapPage implements Page {
 
     final HeapPageId pid;
     final TupleDesc td;
-    final byte header[];
+    final byte header[];//思考: header数组用来存储状态 但是因为一个byte存八位 所以如果有18个slot,要有24位
+                                //因为slot的数目不总是8的倍数 但是在计算元组数量的时候没有将未使用的几位考虑进去
+                                //因此计算出来的最大元组数其实是理论最大值吧  但是因为计算最大元组的时候 总是向下取整 因此总能保证结果是正确的
     final Tuple tuples[];
     final int numSlots;
 
@@ -67,19 +69,24 @@ public class HeapPage implements Page {
     */
     private int getNumTuples() {        
         // some code goes here
-        return 0;
-
+        if(numSlots!=0){
+            return  numSlots;
+        }
+        int PageSize=BufferPool.getPageSize();
+        int TupleSize=td.getSizeInBytes();
+        int numTuples = (PageSize* 8) / (TupleSize * 8 + 1);
+        return numTuples;
     }
 
     /**
      * Computes the number of bytes in the header of a page in a HeapFile with each tuple occupying tupleSize bytes
      * @return the number of bytes in the header of a page in a HeapFile with each tuple occupying tupleSize bytes
      */
-    private int getHeaderSize() {        
-        
+    private int getHeaderSize() {
+        int headerSize=(int)Math.ceil(getNumTuples()/8);
         // some code goes here
-        return 0;
-                 
+        return headerSize;
+
     }
     
     /** Return a view of this page before it was modified
@@ -112,6 +119,9 @@ public class HeapPage implements Page {
      */
     public HeapPageId getId() {
     // some code goes here
+        if(pid!=null){
+            return pid;
+        }
     throw new UnsupportedOperationException("implement this");
     }
 
@@ -284,7 +294,14 @@ public class HeapPage implements Page {
      */
     public int getNumEmptySlots() {
         // some code goes here
-        return 0;
+        // todo
+        int numEmptySlots=0;
+        for (int i = 0; i < getNumTuples(); i++) {
+            if(!isSlotUsed(i)){
+                numEmptySlots++;
+            }
+        }
+        return numEmptySlots;
     }
 
     /**
@@ -292,9 +309,15 @@ public class HeapPage implements Page {
      */
     public boolean isSlotUsed(int i) {
         // some code goes here
-        return false;
+        int bytenum=i/8;
+        int posIntbyte=i%8;
+        return isOne(header[bytenum],posIntbyte); //posIntbyte是从右往左的
     }
-
+    private boolean isOne(byte target, int posInByte) {
+        // 例如该byte是11111011,pos是2(也就是0那个bit的位置)
+        // 那么只需先左移7-2=5位即可通过符号位来判断，注意要强转
+        return (byte) (target << (7 - posInByte)) < 0;  //1为false
+    }
     /**
      * Abstraction to fill or clear a slot on this page.
      * @param i The slot to mark as used or not
@@ -305,14 +328,36 @@ public class HeapPage implements Page {
         // not necessary for lab1
     }
 
+
     /**
      * @return an iterator over all tuples on this page (calling remove on this iterator throws an UnsupportedOperationException)
      * (note that this iterator shouldn't return tuples in empty slots!)
      */
     public Iterator<Tuple> iterator() {
         // some code goes here
-        return null;
+        return new UsedTupleItrator();
     }
+    private class UsedTupleItrator implements Iterator<Tuple>{
+        private int UsedTupleNum=getNumTuples()-getNumEmptySlots();
+        private int curindex=0; //标注当前位置
 
+        private int pos=0; //标注找到非空的数量
+        @Override
+        public boolean hasNext() {
+            return pos<UsedTupleNum;
+        }
+
+        @Override
+        public Tuple next() {
+            if (!hasNext()) {
+                throw new NoSuchElementException("找完了所有slot");
+            }
+            while(!isSlotUsed(curindex)){  //引入pos的好处是 一旦全部找到 就停止寻找 提高了效率
+                curindex++;
+            }
+            pos++;
+            return tuples[curindex++]; //用完就自增 否则下次next 用到的还是这一个
+        }
+    }
 }
 

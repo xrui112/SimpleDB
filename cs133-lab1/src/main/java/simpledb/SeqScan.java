@@ -11,6 +11,13 @@ public class SeqScan implements DbIterator {
 
     private static final long serialVersionUID = 1L;
 
+
+    private TransactionId tid;
+    private int tableid;
+
+    private String tableAlias;
+    private DbFileIterator dbFileIterator;
+
     /**
      * Creates a sequential scan over the specified table as a part of the
      * specified transaction.
@@ -29,6 +36,11 @@ public class SeqScan implements DbIterator {
      */
     public SeqScan(TransactionId tid, int tableid, String tableAlias) {
         // some code goes here
+        this.tid=tid;
+        this.tableAlias=tableAlias;
+        this.tableid=tableid;
+
+//   todo     this.dbFileIterator=Database.getCatalog().getTupleDesc(tableid).iterator(tid);
     }
 
     /**

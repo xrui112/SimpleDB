@@ -2,6 +2,7 @@ package simpledb;
 
 import java.io.*;
 
+import java.util.HashMap;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -26,6 +27,11 @@ public class BufferPool {
     constructor instead. */
     public static final int DEFAULT_PAGES = 50;
 
+
+    private final int PAGES_NUM;
+
+    //当前的缓存页
+    private HashMap<PageId, Page> pid2pages;
     /** TODO for Lab 4: create instance of Lock Manager class. 
 	Be sure to instantiate it in the constructor. */
 
@@ -36,6 +42,8 @@ public class BufferPool {
      */
     public BufferPool(int numPages) {
         // some code goes here
+        PAGES_NUM=numPages;
+        pid2pages=new HashMap<>(PAGES_NUM);
     }
     
     public static int getPageSize() {
@@ -72,10 +80,23 @@ public class BufferPool {
      */
     public  Page getPage(TransactionId tid, PageId pid, Permissions perm)
         throws TransactionAbortedException, DbException {
-        // some code goes here
-        return null;
+        if(pid2pages.containsKey(pid)){  //先到缓冲池中寻找 命中则取出
+            return pid2pages.get(pid);
+        }else{  //未命中则更新池子
+            HeapFile heapFile = (HeapFile) Database.getCatalog().getDatabaseFile(pid.getTableId());
+            Page page = heapFile.readPage(pid); //
+            addNewPage(pid,page); //更新页面到缓存池中
+            return page;
+        }
     }
 
+    private void addNewPage(PageId pid, Page newPage) {
+        pid2pages.put(pid, newPage);
+        //如果超出了最大的缓存页数量
+        if (pid2pages.size() > PAGES_NUM) {
+            // TODO: 实现缓存池替换策略
+        }
+    }
     /**
      * Releases the lock on a page.
      * Calling this is very risky, and may result in wrong behavior. Think hard
