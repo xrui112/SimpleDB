@@ -83,7 +83,7 @@ public class HeapPage implements Page {
      * @return the number of bytes in the header of a page in a HeapFile with each tuple occupying tupleSize bytes
      */
     private int getHeaderSize() {
-        int headerSize=(int)Math.ceil(getNumTuples()/8);
+        int headerSize=(int)Math.ceil(getNumTuples()/8.0); ///特别注意 这里要除以8.0 !!!
         // some code goes here
         return headerSize;
 

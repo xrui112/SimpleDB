@@ -39,6 +39,7 @@ public class SeqScan implements DbIterator {
         this.tid=tid;
         this.tableAlias=tableAlias;
         this.tableid=tableid;
+        dbFileIterator= Database.getCatalog().getDatabaseFile(tableid).iterator(tid);
 
 //   todo     this.dbFileIterator=Database.getCatalog().getTupleDesc(tableid).iterator(tid);
     }
@@ -49,7 +50,7 @@ public class SeqScan implements DbIterator {
      *       be the actual name of the table in the catalog of the database
      * */
     public String getTableName() {
-        return null;
+        return Database.getCatalog().getTableName(tableid);
     }
     
     /**
@@ -58,7 +59,7 @@ public class SeqScan implements DbIterator {
     public String getAlias()
     {
         // some code goes here
-        return null;
+        return tableAlias;
     }
 
     /**
@@ -73,8 +74,14 @@ public class SeqScan implements DbIterator {
      *            are, but the resulting name can be null.fieldName,
      *            tableAlias.null, or null.null).
      */
+    /*值得注意的是 在simpledb中 tableid是根据文件名生成的(一个文件对应一个id对应一个表)
+    不是从0开始的顺序id 除此之外的Pageid tupleid都是人为设置从0开始的
+    */
     public void reset(int tableid, String tableAlias) {
         // some code goes here
+        this.tableid=tableid;
+        this.tableAlias=tableAlias;
+
     }
 
     public SeqScan(TransactionId tid, int tableid) {
@@ -83,6 +90,9 @@ public class SeqScan implements DbIterator {
 
     public void open() throws DbException, TransactionAbortedException {
         // some code goes here
+        //遍历每一个表  对每一个表取出对应的Heapfile迭代器
+        dbFileIterator.open();
+
     }
 
     /**
@@ -97,26 +107,40 @@ public class SeqScan implements DbIterator {
      */
     public TupleDesc getTupleDesc() {
         // some code goes here
-        return null;
+        TupleDesc tupleDesc= Database.getCatalog().getTupleDesc(tableid);
+        int num=tupleDesc.numFields();
+        Type[] types = new Type[num];
+        String[] names = new String[num];
+        for(int i=0;i<num;i++){
+            types[i]=tupleDesc.getFieldType(i);
+            String pre=getAlias();
+            if(pre==null){
+                pre="null";
+            }
+            names[i]=pre+"."+tupleDesc.getFieldName(i);
+        }
+        return new TupleDesc(types,names);
     }
 
     public boolean hasNext() throws TransactionAbortedException, DbException {
         // some code goes here
-        return false;
+        return dbFileIterator.hasNext();
     }
 
     public Tuple next() throws NoSuchElementException,
             TransactionAbortedException, DbException {
         // some code goes here
-        return null;
+        return dbFileIterator.next();
     }
 
     public void close() {
         // some code goes here
+        dbFileIterator.close();
     }
 
     public void rewind() throws DbException, NoSuchElementException,
             TransactionAbortedException {
         // some code goes here
+        dbFileIterator.rewind();
     }
 }
